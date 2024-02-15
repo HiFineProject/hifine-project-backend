@@ -6,7 +6,7 @@ import cors from "cors";
 import { ObjectId } from "mongodb";
 import databaseClient from "./services/database.mjs";
 import { checkMissingField } from "./utilities/requestUtilities.js";
-import { createJwt } from "./milddlewares/createJWT.js";
+import { createJwt } from "./milddlewares/createJwt.js";
 import { auth } from "./milddlewares/auth.js";
 import { logmiddlewares } from "./milddlewares/logmiddlewares.js";
 
@@ -215,11 +215,11 @@ webServer.delete("/lists/:listId", async (req, res) => {
   }
 });
 
-const currentServer = webServer.listen(PORT, HOSTNAME, () => {
+const currentServer = webServer.listen(() => {
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
-  console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
+  console.log(`SERVER IS ONLINE`);
 });
 
 const cleanup = () => {
