@@ -3,6 +3,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import helmet from "helmet";
 import cors from "cors";
+import { ObjectId } from "mongodb";
 import databaseClient from "./services/database.mjs";
 import { checkMissingField } from "./utilities/requestUtilities.js";
 import { createJwt } from "./milddlewares/createJWT.js";
@@ -18,13 +19,12 @@ const LOGIN_DATA_KEYS = ["email", "password"];
 
 const webServer = express();
 
-webServer.use(logmiddlewares())
+webServer.use(logmiddlewares());
 
 dotenv.config();
 webServer.use(express.json());
 webServer.use(helmet());
 webServer.use(cors());
-
 
 webServer.get("/", async (req, res) => {
   res.status(200).send("This is server");
@@ -42,12 +42,15 @@ webServer.post("/signup", async (req, res) => {
     body
   );
 
-  const existingUser = await databaseClient.db().collection("users").findOne({ email: body.email });
+  const existingUser = await databaseClient
+    .db()
+    .collection("users")
+    .findOne({ email: body.email });
   if (existingUser) {
     res.status(400).send("Email already exists");
     return;
   }
-  
+
   if (!isBodyChecked) {
     res.status(400).send(`Missing Fields: ${"".concat(missingFields)}`);
     return;
@@ -57,7 +60,7 @@ webServer.post("/signup", async (req, res) => {
   body["password"] = await bcrypt.hash(body["password"], saltRound);
 
   const result = await databaseClient.db().collection("users").insertOne(body);
-  const token = createJwt(body.email)
+  const token = createJwt(body.email);
   res.status(201).json({ token, email: body.email, userId: result.insertedId });
   // res >> json(user_id) or email
   // if status 200 redirect
@@ -106,107 +109,111 @@ webServer.post("/login", async (req, res) => {
 });
 
 
-webServer.put("/profile", async (req, res) => {
-  //or patch
-  let { profileImage, displayName } = req.body;
-  const email = userSeession();
-
-  const user = await databaseClient.db().collection("users").findOne({ email });
-  if (!user) {
-    return res.status(404).send("User not found.");
-  }
-
-  const updateProfile = {};
-  if (profileImage) {
-    updateProfile.profileImage = profileImage;
-  }
-  if (displayName) {
-    updateProfile.displayName = displayName;
-  }
-
-  const result = await databaseClient
-    .db()
-    .collection("users")
-    .insertOne({ email }, { $set: updateProfile });
-  if ((result.modifiedCount = 1)) {
-    res.status(200).send("Profile updated successfully.");
-  } else {
-    res.status(500).send("Failed to update profile.");
-  }
-});
-
-// simple get posts data
-webServer.get("/posts", async (req, res) => {
-  const postdata = await databaseClient
-    .db()
-    .collection("activities")
-    .find()
-    .toArray();
-  res.status(200).send(postdata);
-});
-
-// webServer.post("/posts", async (req, res) => {
-//   const body = req.body;
-//  data structure of posts
-// { description, image, duration, distance, date by new Data() }
-// });
-
-webServer.post('/posts', async (req, res) => {
-  const {description, image ,duration, distance} = req.body
-})
-
-webServer.get("/lists", async (req, res) => {
-  const postdata = await databaseClient
-    .db()
-    .collection("activities")
-    .find()
-    .toArray();
-  res.status(200).send(postdata);
-});
-
-webServer.get("/lists", async (req, res) => {
-  // get userId from body then find lists that have the same userId
-
-  const lists = await databaseClient.db("lists").find({ userId });
-  res.status(200).send(lists);
-});
-
 webServer.post("/lists", async (req, res) => {
-  let body = req.body;
+  const { title, todoItem, dateTime } = req.body;
+  const missingFields = [];
 
-  const listsdata = await databaseClient.db("lists").insertOne();
+  if (!title) {
+    missingFields.push("title");
+  }
+  if (!todoItem) {
+    missingFields.push("todoItem");
+  }
+  if (!dateTime) {
+    missingFields.push("dateTime");
+  }
 
-  res.status(200).send({ todoLists });
+  if (missingFields.length > 0) {
+    return res
+      .status(400)
+      .json({ message: `Missing required data: ${missingFields.join(", ")}` });
+  } else {
+    try {
+      const result = await databaseClient.db().collection("lists").insertOne({
+        title: title,
+        todoItem: todoItem,
+        dateTime: dateTime,
+      });
+      return res
+        .status(200)
+        .json({ message: "List created successfully", result });
+    } catch (error) {
+      console.error("Error creating list:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
 });
 
-function createLists(attributes) {
-  const defaultLists = {
-    listsId: "",
-    listsDescription: "",
-    listsDate: "",
-    listsStatus: false,
-  };
-  const lists = {
-    ...defaultLists,
-    ...attributes,
-    id: lists.id,
-  };
-  listsDatabase[lists.listsId] = lists;
-  return lists;
-}
+webServer.get("/lists", async (req, res) => {
+  try {
+    const lists = await databaseClient
+      .db()
+      .collection("lists")
+      .find()
+      .toArray();
+    res.status(200).send(lists);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: { message: "Internal Server Error" } });
+  }
+});
 
-//testing auth annd cookies
-// webServer.get('/home', auth, (req, res) =>{
-//   res.send(`This is userhome`)
-// })
+webServer.patch("/lists/:listId", async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { title, todoItem, dateTime } = req.body;
+    const objectId = new ObjectId(listId);
+    const existingList = await databaseClient
+      .db()
+      .collection("lists")
+      .findOne({ _id: objectId });
 
-// webServer.get('/profile', auth, (req, res) =>{
-//   res.send(`This is user profile`)
-// })
+    if (!existingList) {
+      return res.status(404).json({ message: "List not found" });
+    }
+    const updateOperation = {};
+    if (title) {
+      updateOperation.title = title;
+    }
+    if (todoItem) {
+      updateOperation.todoItem = todoItem;
+    }
+    if (dateTime) {
+      updateOperation.dateTime = dateTime;
+    }
+    const updateResult = await databaseClient
+      .db()
+      .collection("lists")
+      .updateOne({ _id: objectId }, { $set: updateOperation });
 
-// webServer.get('/lists', auth, (req, res) =>{
-//   res.send(`This is lists`)
-// })
+    if (updateResult.modifiedCount === 0) {
+      return res.status(304).json({ message: "No fields to update" });
+    }
+
+    res.status(200).json({ message: "List updated successfully" });
+  } catch (error) {
+    console.error("Error updating list:", error);
+    res.status(500).json({ message: "An error occurred while updating the list" });
+  }
+});
+
+webServer.delete("/lists/:listId", async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const objectId = new ObjectId(listId);
+    const deleteResult = await databaseClient
+      .db()
+      .collection("lists")
+      .deleteOne({ _id: objectId });
+    if (deleteResult.deletedCount === 0) {
+      return res.status(404).json({ message: "List not found" });
+    }
+    res.status(200).json({ message: "List deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting list:", error);
+    res.status(500).json({ message: "An error occurred while deleting the list" });
+  }
+});
 
 const currentServer = webServer.listen(PORT, HOSTNAME, () => {
   console.log(
