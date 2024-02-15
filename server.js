@@ -219,9 +219,8 @@ webServer.delete("/lists/:listId", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-const currentServer = webServer.listen(() => {
-=======
+// const currentServer = webServer.listen(() => {
+
 // const currentServer = webServer.listen(PORT, HOSTNAME, () => {
 //   console.log(
 //     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
@@ -230,7 +229,7 @@ const currentServer = webServer.listen(() => {
 // });
 
 const currentServer = webServer.listen(process.env.PORT || 3000, () => {
->>>>>>> 7920ad243e76cdf4802e96c32d8463927be32662
+
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
