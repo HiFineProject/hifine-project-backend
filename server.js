@@ -8,6 +8,7 @@ import databaseClient from "./services/database.mjs";
 import { checkMissingField } from "./utilities/requestUtilities.js";
 import { createJwt } from "./milddlewares/createJwt.js";
 import { auth } from "./milddlewares/auth.js";
+
 import { logmiddlewares } from "./milddlewares/logmiddlewares.js";
 
 const HOSTNAME = process.env.SERVER_IP || "127.0.0.1";
@@ -108,7 +109,6 @@ webServer.post("/login", async (req, res) => {
   // alternative use session set cookies delete after close browser
 });
 
-
 webServer.post("/lists", async (req, res) => {
   const { title, todoItem, dateTime } = req.body;
   const missingFields = [];
@@ -193,7 +193,9 @@ webServer.patch("/lists/:listId", async (req, res) => {
     res.status(200).json({ message: "List updated successfully" });
   } catch (error) {
     console.error("Error updating list:", error);
-    res.status(500).json({ message: "An error occurred while updating the list" });
+    res
+      .status(500)
+      .json({ message: "An error occurred while updating the list" });
   }
 });
 
@@ -211,17 +213,29 @@ webServer.delete("/lists/:listId", async (req, res) => {
     res.status(200).json({ message: "List deleted successfully" });
   } catch (error) {
     console.error("Error deleting list:", error);
-    res.status(500).json({ message: "An error occurred while deleting the list" });
+    res
+      .status(500)
+      .json({ message: "An error occurred while deleting the list" });
   }
 });
 
+<<<<<<< HEAD
 const currentServer = webServer.listen(() => {
+=======
+// const currentServer = webServer.listen(PORT, HOSTNAME, () => {
+//   console.log(
+//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
+//   );
+//   console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
+// });
+
+const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+>>>>>>> 7920ad243e76cdf4802e96c32d8463927be32662
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
   console.log(`SERVER IS ONLINE`);
 });
-
 const cleanup = () => {
   currentServer.close(() => {
     console.log(
