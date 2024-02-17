@@ -1,240 +1,140 @@
 import dotenv from "dotenv";
 import express from "express";
-import bcrypt from "bcrypt";
 import helmet from "helmet";
 import cors from "cors";
+import multer from "multer";
 import { ObjectId } from "mongodb";
+import { v2 as cloudinary } from "cloudinary";
 import databaseClient from "./services/database.mjs";
-import { checkMissingField } from "./utilities/requestUtilities.js";
-import { createJwt } from "./milddlewares/createJwt.js";
 import { auth } from "./milddlewares/auth.js";
-
 import { logmiddlewares } from "./milddlewares/logmiddlewares.js";
+import * as listsControllers from "./controllers/listsControllers.js";
+import * as usersControllers from "./controllers/usersControllers.js";
+import * as postsController from "./controllers/postsController.js";
 
 const HOSTNAME = process.env.SERVER_IP || "127.0.0.1";
 const PORT = process.env.SERVER_PORT || 3000;
-const SALT = 10;
 
-const SIGNUP_DATA_KEYS = ["email", "password"];
-const LOGIN_DATA_KEYS = ["email", "password"];
+dotenv.config();
 
 const webServer = express();
 
 webServer.use(logmiddlewares());
-
-dotenv.config();
 webServer.use(express.json());
 webServer.use(helmet());
 webServer.use(cors());
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
+});
+
+async function uploadToCloudinary(req, res, next) {
+  const fileBufferBase64 = Buffer.from(req.file.buffer).toString("base64");
+  const base64File = `data:${req.file.mimetype};base64,${fileBufferBase64}`;
+  req.cloudinary = await cloudinary.uploader.upload(base64File, {
+    resource_type: "auto",
+  });
+
+  next();
+}
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 webServer.get("/", async (req, res) => {
-  res.status(200).send("This is server");
+  res.status(200).send("Welcome to HiFine Server");
 });
 
-webServer.get("/users", async (req, res) => {
-  const data = await databaseClient.db().collection("users").find().toArray();
-  res.status(200).json(data);
-});
+// SignUp SignIn Profile
+webServer.get("/users", usersControllers.getUsers);
+webServer.post("/signup", usersControllers.signupUser);
+webServer.post("/signin", usersControllers.signinUser);
 
-webServer.post("/signup", async (req, res) => {
-  let body = req.body;
-  const [isBodyChecked, missingFields] = checkMissingField(
-    SIGNUP_DATA_KEYS,
-    body
-  );
-
-  const existingUser = await databaseClient
-    .db()
-    .collection("users")
-    .findOne({ email: body.email });
-  if (existingUser) {
-    res.status(400).send("Email already exists");
-    return;
-  }
-
-  if (!isBodyChecked) {
-    res.status(400).send(`Missing Fields: ${"".concat(missingFields)}`);
-    return;
-  }
-
-  const saltRound = await bcrypt.genSalt(SALT);
-  body["password"] = await bcrypt.hash(body["password"], saltRound);
-
-  const result = await databaseClient.db().collection("users").insertOne(body);
-  const token = createJwt(body.email);
-  res.status(201).json({ token, email: body.email, userId: result.insertedId });
-  // res >> json(user_id) or email
-  // if status 200 redirect
-  // return user_id or email <unique
-  //
-  // req...
-  // convert to base 64 post & get
-  // encrypt base 64 FE >>> string >>> mongo objects or blob object
-  //
-});
-
-webServer.post("/login", async (req, res) => {
-  let body = req.body;
-  const [isBodyChecked, missingFields] = checkMissingField(
-    LOGIN_DATA_KEYS,
-    body
-  );
-  if (!isBodyChecked) {
-    res.status(400).send(`Missing Fields: ${"".concat(missingFields)}`);
-    return;
-  }
-  const user = await databaseClient
-    .db()
-    .collection("users")
-    .findOne({ email: body.email });
-  if (user === null) {
-    res.status(400).send(`User or Password not found: User`);
-    return;
-  }
-  if (!bcrypt.compareSync(body.password, user.password)) {
-    res.status(400).send("User or Password not found: Password");
-    return;
-  }
-
-  const token = createJwt(user.email);
-  res.status(200).json({ token, message: `Your Login ${user.email}` });
-  // this section is for cookies
-  // res.send(createJwt(email), `Your Login ${user.email}`);
-  // res.cookies('name', 'bearer' + token, {
-  //  expire: new Date(Date.now() + 8 * 360000 // cookies will be remove after 8 hours
-  // })
-  // . coockies('test', 'test')
-  //
-  // refresh token?
-  // alternative use session set cookies delete after close browser
-});
-
-webServer.post("/lists", async (req, res) => {
-  const { title, todoItem, dateTime } = req.body;
-  const missingFields = [];
-
-  if (!title) {
-    missingFields.push("title");
-  }
-  if (!todoItem) {
-    missingFields.push("todoItem");
-  }
-  if (!dateTime) {
-    missingFields.push("dateTime");
-  }
-
-  if (missingFields.length > 0) {
-    return res
-      .status(400)
-      .json({ message: `Missing required data: ${missingFields.join(", ")}` });
-  } else {
+webServer.patch(
+  "/createProfile",
+  auth,
+  upload.single("image"),
+  uploadToCloudinary,
+  async (req, res) => {
     try {
-      const result = await databaseClient.db().collection("lists").insertOne({
-        title: title,
-        todoItem: todoItem,
-        dateTime: dateTime,
-      });
-      return res
-        .status(200)
-        .json({ message: "List created successfully", result });
+      if (!req.file || !req.cloudinary) {
+        return res.status(400).json({ error: "File upload failed." });
+      }
+
+      // Get userId and displayName from the request object
+      const userId = new ObjectId(req.user.userId);
+      const displayName = req.body.displayName;
+
+      // Check if the user exists
+      const user = await databaseClient
+        .db()
+        .collection("users")
+        .findOne({ _id: userId });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      // Update user profile image URL and displayName in the database
+      const result = await databaseClient
+        .db()
+        .collection("users")
+        .updateOne(
+          { _id: userId },
+          { $set: { profileImage: req.cloudinary.secure_url, displayName: displayName } }
+        );
+
+      // Check if the update was successful
+      if (result.modifiedCount === 1) {
+        return res.json({
+          message: "Image uploaded and updated profile picture successfully.",
+          public_id: req.cloudinary.public_id,
+          secure_url: req.cloudinary.secure_url,
+          userId: user._id,
+          displayName: displayName,
+        });
+      } else {
+        return res.status(500).json({ error: "Failed to update profile picture." });
+      }
     } catch (error) {
-      console.error("Error creating list:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
+      console.error("Error updating profile picture:", error);
+      return res.status(500).json({ error: "Failed to update profile picture." });
     }
   }
-});
+);
 
-webServer.get("/lists", async (req, res) => {
-  try {
-    const lists = await databaseClient
-      .db()
-      .collection("lists")
-      .find()
-      .toArray();
-    res.status(200).send(lists);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ error: { message: "Internal Server Error" } });
-  }
-});
+// //posts GET POST PATCH(PUT) DELETE
+// webServer.get("/posts", auth, postsController.getPosts);
+// webServer.post("/posts", auth, postsController.postPost);
+// webServer.patch("/posts/:postId", auth, postsController.patchPost);
+// webServer.delete("/posts/:postId", auth, postsController.deletePost);
 
-webServer.patch("/lists/:listId", async (req, res) => {
-  try {
-    const { listId } = req.params;
-    const { title, todoItem, dateTime } = req.body;
-    const objectId = new ObjectId(listId);
-    const existingList = await databaseClient
-      .db()
-      .collection("lists")
-      .findOne({ _id: objectId });
+// lists GET POST PATCH(PUT) DELETE
+webServer.get("/lists", auth, listsControllers.getLists);
+webServer.post("/lists", auth, listsControllers.postList);
+webServer.patch("/lists/:listId", auth, listsControllers.patchList);
+webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
-    if (!existingList) {
-      return res.status(404).json({ message: "List not found" });
-    }
-    const updateOperation = {};
-    if (title) {
-      updateOperation.title = title;
-    }
-    if (todoItem) {
-      updateOperation.todoItem = todoItem;
-    }
-    if (dateTime) {
-      updateOperation.dateTime = dateTime;
-    }
-    const updateResult = await databaseClient
-      .db()
-      .collection("lists")
-      .updateOne({ _id: objectId }, { $set: updateOperation });
-
-    if (updateResult.modifiedCount === 0) {
-      return res.status(304).json({ message: "No fields to update" });
-    }
-
-    res.status(200).json({ message: "List updated successfully" });
-  } catch (error) {
-    console.error("Error updating list:", error);
-    res
-      .status(500)
-      .json({ message: "An error occurred while updating the list" });
-  }
-});
-
-webServer.delete("/lists/:listId", async (req, res) => {
-  try {
-    const { listId } = req.params;
-    const objectId = new ObjectId(listId);
-    const deleteResult = await databaseClient
-      .db()
-      .collection("lists")
-      .deleteOne({ _id: objectId });
-    if (deleteResult.deletedCount === 0) {
-      return res.status(404).json({ message: "List not found" });
-    }
-    res.status(200).json({ message: "List deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting list:", error);
-    res
-      .status(500)
-      .json({ message: "An error occurred while deleting the list" });
-  }
-});
-
-// const currentServer = webServer.listen(() => {
-
-// const currentServer = webServer.listen(PORT, HOSTNAME, () => {
-//   console.log(
-//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
-//   );
-//   console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
-// });
-
-const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+const currentServer = webServer.listen(PORT, HOSTNAME, () => {
+  // for Test Localhost
 
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
-  console.log(`SERVER IS ONLINE`);
+  console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
 });
+
+// for Test Render
+// const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+
+//   console.log(
+//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
+//   );
+//   console.log(`SERVER IS ONLINE`);
+// });
+
 const cleanup = () => {
   currentServer.close(() => {
     console.log(
