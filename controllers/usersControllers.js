@@ -59,7 +59,7 @@ export const signinUser = async (req, res) => {
     body
   );
   if (!isBodyChecked) {
-    res.status(400).send(`Missing Fields: ${"".concat(missingFields)}`);
+    res.status(400).send(`Missing Fields: ${missingFields.join(", ")}`);
     return;
   }
   const user = await databaseClient
@@ -67,16 +67,16 @@ export const signinUser = async (req, res) => {
     .collection("users")
     .findOne({ email: body.email });
   if (user === null) {
-    res.status(400).send(`User or Password not found: User`);
+    res.status(401).send(`User not found`);
     return;
   }
   if (!bcrypt.compareSync(body.password, user.password)) {
-    res.status(400).send("User or Password not found: Password");
+    res.status(401).send("Password incorrect");
     return;
   }
 
-  const token = createJwt(user.userId, user.email);
-  res.status(200).json({ token, message: `Your Login ${user.email}` });
+  const token = createJwt({ userId: user._id.toString(), email: user.email });
+  res.status(200).json({ token, message: `Welcome ${user.email}` });
 };
 
 // export const createProfile = async (req, res) => {
