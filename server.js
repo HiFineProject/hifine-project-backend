@@ -22,7 +22,11 @@ const webServer = express();
 webServer.use(logmiddlewares());
 webServer.use(express.json());
 webServer.use(helmet());
-webServer.use(cors());
+webServer.use(
+  cors({
+    origin: true,
+  })
+);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -102,7 +106,6 @@ webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
 // for Render
 const currentServer = webServer.listen(process.env.PORT || 3000, () => {
-
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );

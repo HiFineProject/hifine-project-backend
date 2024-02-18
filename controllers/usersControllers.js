@@ -55,7 +55,7 @@ export const signupUser = async (req, res) => {
     const userId = result.insertedId;
     const token = createJwt({ userId: userId, email: body.email });
 
-    return res.status(201).json({ token, userId, email: body.email });
+    return res.status(201).json({ token });
   } catch (error) {
     console.error("Error signing up user:", error);
     return res.status(500).send("Internal Server Error");
