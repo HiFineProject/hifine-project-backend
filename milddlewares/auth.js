@@ -5,7 +5,7 @@ export const auth = (req, res, next) => {
   const jwtSecretKey = process.env.JWT_SECRET_KEY;
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
-    return res.status(401).send({ error: { messesage: "Unauthorized" } });
+    return res.status(401).send({ error: { message: "Unauthorized" } });
   }
 
   const token = authHeader.split(" ")[1];
@@ -16,6 +16,6 @@ export const auth = (req, res, next) => {
     next();
   } catch (error) {
     console.log(error);
-    res.status(400).send({ error: { messesage: "Invalid token" } });
+    res.status(400).send({ error: { message: "Invalid token" } });
   }
 };
