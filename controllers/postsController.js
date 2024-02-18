@@ -55,7 +55,7 @@ export const postPosts = async (req, res) => {
   }
 };
 
-export const patchPosts = async (req, res) => {};
+// export const patchPosts = async (req, res) => {};
 
 export const deletePosts = async (req, res) => {
     const postId = new ObjectId(req.params.postId)
