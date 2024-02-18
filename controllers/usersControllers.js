@@ -79,42 +79,59 @@ export const signinUser = async (req, res) => {
   res.status(200).json({ token, message: `Welcome ${user.email}` });
 };
 
-// export const createProfile = async (req, res) => {
-//   try {
-//     if (!req.file || !req.cloudinary) {
-//       return res.status(400).json({ error: "File upload failed." });
-//     }
+export const createProfile = async (req, res) => {
+    try {
+      if (!req.file || !req.cloudinary) {
+        return res.status(400).json({ error: "File upload failed." });
+      }
 
-//     const userId = new ObjectId(req.user.userId);
-//     const user = await databaseClient
-//       .db()
-//       .collection("users")
-//       .findOne({ _id: userId });
+      // Get userId and displayName from the request object
+      const userId = new ObjectId(req.user.userId);
+      const displayName = req.body.displayName;
 
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found." });
-//     }
+      // Check if the user exists
+      const user = await databaseClient
+        .db()
+        .collection("users")
+        .findOne({ _id: userId });
 
-//     const result = await databaseClient
-//       .db()
-//       .collection("users")
-//       .updateOne(
-//         { _id: userId },
-//         { $set: { profileImage: req.cloudinary.secure_url } }
-//       );
+      if (!user) {
+        return res.status(404).json({ error: "User not found." });
+      }
 
-//     if (result.modifiedCount === 1) {
-//       res.json({
-//         message: "Image uploaded and updated profile picture successfully.",
-//         public_id: req.cloudinary.public_id,
-//         secure_url: req.cloudinary.secure_url,
-//         UserId: user._id,
-//       });
-//     } else {
-//       res.status(500).json({ error: "Failed to update profile picture." });
-//     }
-//   } catch (error) {
-//     console.error("Error updating profile picture:", error);
-//     res.status(500).json({ error: "Failed to update profile picture." });
-//   }
-// };
+      // Update user profile image URL and displayName in the database
+      const result = await databaseClient
+        .db()
+        .collection("users")
+        .updateOne(
+          { _id: userId },
+          {
+            $set: {
+              public_id: req.cloudinary.public_id,
+              profileImage: req.cloudinary.secure_url,
+              displayName: displayName,
+            },
+          }
+        );
+
+      // Check if the update was successful
+      if (result.modifiedCount === 1) {
+        return res.json({
+          message: "Image uploaded and updated profile picture successfully.",
+          public_id: req.cloudinary.public_id,
+          secure_url: req.cloudinary.secure_url,
+          userId: user._id,
+          displayName: displayName,
+        });
+      } else {
+        return res
+          .status(500)
+          .json({ error: "Failed to update profile picture." });
+      }
+    } catch (error) {
+      console.error("Error updating profile picture:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to update profile picture." });
+    }
+  }

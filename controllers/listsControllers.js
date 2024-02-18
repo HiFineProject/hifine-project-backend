@@ -38,7 +38,7 @@ export const postList = async (req, res) => {
       .json({ message: `Missing required data: ${missingFields.join(", ")}` });
   } else {
     try {
-      const userId = req.user.userId; // Assuming userId is available in req.user
+      const userId = req.user.userId; // userId is available in req.user from token
 
       const result = await databaseClient.db().collection("lists").insertOne({
         userId: userId,
