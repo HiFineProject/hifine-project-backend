@@ -21,6 +21,7 @@ const webServer = express();
 
 webServer.use(logmiddlewares());
 webServer.use(express.json());
+
 webServer.use(helmet());
 webServer.use(cors());
 
@@ -83,7 +84,13 @@ webServer.patch(
         .collection("users")
         .updateOne(
           { _id: userId },
-          { $set: { profileImage: req.cloudinary.secure_url, displayName: displayName } }
+          {
+            $set: {
+              public_id: req.cloudinary.public_id,
+              profileImage: req.cloudinary.secure_url,
+              displayName: displayName,
+            },
+          }
         );
 
       // Check if the update was successful
@@ -96,18 +103,64 @@ webServer.patch(
           displayName: displayName,
         });
       } else {
-        return res.status(500).json({ error: "Failed to update profile picture." });
+        return res
+          .status(500)
+          .json({ error: "Failed to update profile picture." });
       }
     } catch (error) {
       console.error("Error updating profile picture:", error);
-      return res.status(500).json({ error: "Failed to update profile picture." });
+      return res
+        .status(500)
+        .json({ error: "Failed to update profile picture." });
     }
   }
 );
 
 // //posts GET POST PATCH(PUT) DELETE
 // webServer.get("/posts", auth, postsController.getPosts);
-// webServer.post("/posts", auth, postsController.postPost);
+webServer.post(
+  "/posts",
+  auth,
+  upload.single("image"),
+  uploadToCloudinary,
+  async (req, res) => {
+    try {
+      if (!req.file || !req.cloudinary) {
+        return res.status(400).json({ error: "File upload failed." });
+      }
+      const { description, duration, distance, activityType } = req.body;
+      const { hour, min } = JSON.parse(duration);
+      const { km, m } = JSON.parse(distance);
+
+      const { public_id, secure_url } = req.cloudinary;
+      const userId = new ObjectId(req.user.userId);
+
+      const result = await databaseClient.db().collection("posts").insertOne({
+        userId,
+        description,
+        duration: { hour, min },
+        distance: { km, m },
+        activityType,
+        image: {
+          public_id,
+          secure_url,
+        },
+      });
+
+      if (result.insertedCount === 1) {
+        console.log("Post created successfully:", result.ops[0]);
+        return res.status(201).json({ message: "Post created successfully." });
+      } else {
+        console.log("Failed to create post:", result);
+        return res.status(500).json({ error: "Failed to create post." });
+      }
+    } catch (error) {
+      console.error("Error creating post:", error);
+      return res.status(500).json({ error: "Failed to create post." });
+    }
+  }
+);
+
 // webServer.patch("/posts/:postId", auth, postsController.patchPost);
 // webServer.delete("/posts/:postId", auth, postsController.deletePost);
 
@@ -117,23 +170,22 @@ webServer.post("/lists", auth, listsControllers.postList);
 webServer.patch("/lists/:listId", auth, listsControllers.patchList);
 webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
-const currentServer = webServer.listen(PORT, HOSTNAME, () => {
-  // for Test Localhost
+//  for Localhost
+// const currentServer = webServer.listen(PORT, HOSTNAME, () => {
+//   console.log(
+//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
+//   );
+//   console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
+// });
+
+// for Render
+const currentServer = webServer.listen(process.env.PORT || 3000, () => {
 
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
-  console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
+  console.log(`SERVER IS ONLINE`);
 });
-
-// for Test Render
-// const currentServer = webServer.listen(process.env.PORT || 3000, () => {
-
-//   console.log(
-//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
-//   );
-//   console.log(`SERVER IS ONLINE`);
-// });
 
 const cleanup = () => {
   currentServer.close(() => {
