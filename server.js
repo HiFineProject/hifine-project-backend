@@ -130,21 +130,21 @@ webServer.patch("/lists/:listId", auth, listsControllers.patchList);
 webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
 //  for Localhost
-const currentServer = webServer.listen(PORT, HOSTNAME, () => {
-  console.log(
-    `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
-  );
-  console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
-});
-
-// for Render
-// const currentServer = webServer.listen(process.env.PORT || 3000, () => {
-
+// const currentServer = webServer.listen(PORT, HOSTNAME, () => {
 //   console.log(
 //     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
 //   );
-//   console.log(`SERVER IS ONLINE`);
+//   console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
 // });
+
+// for Render
+const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+
+  console.log(
+    `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
+  );
+  console.log(`SERVER IS ONLINE`);
+});
 
 const cleanup = () => {
   currentServer.close(() => {
