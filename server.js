@@ -49,7 +49,7 @@ webServer.get("/", async (req, res) => {
 });
 
 // SignUp SignIn Profile
-webServer.get("/users", usersControllers.getUsers);
+webServer.get("/user", auth, usersControllers.getUsers);
 webServer.post("/signup", usersControllers.signupUser);
 webServer.post("/signin", usersControllers.signinUser);
 webServer.patch(

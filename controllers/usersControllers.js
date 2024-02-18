@@ -10,9 +10,19 @@ const SALT = 10;
 const SIGNUP_DATA_KEYS = ["email", "password"];
 const LOGIN_DATA_KEYS = ["email", "password"];
 
+
 export const getUsers = async (req, res) => {
-  const data = await databaseClient.db().collection("users").find().toArray();
-  res.status(200).json(data);
+  try {
+    const userId = new ObjectId(req.user.userId);
+    const userData = await databaseClient
+      .db()
+      .collection("users")
+      .findOne({ _id: userId });
+    res.status(200).send(userData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: { message: "Internal Server Error" } });
+  }
 };
 
 export const signupUser = async (req, res) => {
@@ -80,58 +90,56 @@ export const signinUser = async (req, res) => {
 };
 
 export const createProfile = async (req, res) => {
-    try {
-      if (!req.file || !req.cloudinary) {
-        return res.status(400).json({ error: "File upload failed." });
-      }
+  try {
+    if (!req.file || !req.cloudinary) {
+      return res.status(400).json({ error: "File upload failed." });
+    }
 
-      // Get userId and displayName from the request object
-      const userId = new ObjectId(req.user.userId);
-      const displayName = req.body.displayName;
+    // Get userId and displayName from the request object
+    const userId = new ObjectId(req.user.userId);
+    const displayName = req.body.displayName;
 
-      // Check if the user exists
-      const user = await databaseClient
-        .db()
-        .collection("users")
-        .findOne({ _id: userId });
+    // Check if the user exists
+    const user = await databaseClient
+      .db()
+      .collection("users")
+      .findOne({ _id: userId });
 
-      if (!user) {
-        return res.status(404).json({ error: "User not found." });
-      }
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
-      // Update user profile image URL and displayName in the database
-      const result = await databaseClient
-        .db()
-        .collection("users")
-        .updateOne(
-          { _id: userId },
-          {
-            $set: {
-              public_id: req.cloudinary.public_id,
-              profileImage: req.cloudinary.secure_url,
-              displayName: displayName,
-            },
-          }
-        );
+    // Update user profile image URL and displayName in the database
+    const result = await databaseClient
+      .db()
+      .collection("users")
+      .updateOne(
+        { _id: userId },
+        {
+          $set: {
+            public_id: req.cloudinary.public_id,
+            profileImage: req.cloudinary.secure_url,
+            displayName: displayName,
+          },
+        }
+      );
 
-      // Check if the update was successful
-      if (result.modifiedCount === 1) {
-        return res.json({
-          message: "Image uploaded and updated profile picture successfully.",
-          public_id: req.cloudinary.public_id,
-          secure_url: req.cloudinary.secure_url,
-          userId: user._id,
-          displayName: displayName,
-        });
-      } else {
-        return res
-          .status(500)
-          .json({ error: "Failed to update profile picture." });
-      }
-    } catch (error) {
-      console.error("Error updating profile picture:", error);
+    // Check if the update was successful
+    if (result.modifiedCount === 1) {
+      return res.json({
+        message: "Image uploaded and updated profile picture successfully.",
+        public_id: req.cloudinary.public_id,
+        secure_url: req.cloudinary.secure_url,
+        userId: user._id,
+        displayName: displayName,
+      });
+    } else {
       return res
         .status(500)
         .json({ error: "Failed to update profile picture." });
     }
+  } catch (error) {
+    console.error("Error updating profile picture:", error);
+    return res.status(500).json({ error: "Failed to update profile picture." });
   }
+};
