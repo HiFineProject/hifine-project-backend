@@ -52,10 +52,31 @@ webServer.get("/", async (req, res) => {
 webServer.get("/users", usersControllers.getUsers);
 webServer.post("/signup", usersControllers.signupUser);
 webServer.post("/signin", usersControllers.signinUser);
-webServer.patch("/createProfile", auth, upload.single("image"), uploadToCloudinary, usersControllers.createProfile);
+webServer.patch(
+  "/createProfile",
+  auth,
+  upload.single("image"),
+  uploadToCloudinary,
+  usersControllers.createProfile
+);
 
 // //posts GET POST PATCH(PUT) DELETE
-// webServer.get("/posts", auth, postsController.getPosts);
+webServer.get("/posts", auth, async (req, res) => {
+  try {
+    const userId = new ObjectId(req.user.userId); // Convert userId to ObjectId
+    const posts = await databaseClient
+      .db()
+      .collection("posts")
+      .find({ userId: userId })
+      .toArray();
+
+    res.status(200).send(posts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: { message: "Internal Server Error" } });
+  }
+});
+
 webServer.post(
   "/posts",
   auth,
@@ -109,21 +130,21 @@ webServer.patch("/lists/:listId", auth, listsControllers.patchList);
 webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
 //  for Localhost
-// const currentServer = webServer.listen(PORT, HOSTNAME, () => {
-//   console.log(
-//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
-//   );
-//   console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
-// });
-
-// for Render
-const currentServer = webServer.listen(process.env.PORT || 3000, () => {
-
+const currentServer = webServer.listen(PORT, HOSTNAME, () => {
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
-  console.log(`SERVER IS ONLINE`);
+  console.log(`SERVER IS ONLINE => http://${HOSTNAME}:${PORT}`);
 });
+
+// for Render
+// const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+
+//   console.log(
+//     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
+//   );
+//   console.log(`SERVER IS ONLINE`);
+// });
 
 const cleanup = () => {
   currentServer.close(() => {
