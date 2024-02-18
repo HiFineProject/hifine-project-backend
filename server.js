@@ -60,62 +60,7 @@ webServer.patch(
   auth,
   upload.single("image"),
   uploadToCloudinary,
-  async (req, res) => {
-    try {
-      if (!req.file || !req.cloudinary) {
-        return res.status(400).json({ error: "File upload failed." });
-      }
-
-      // Get userId and displayName from the request object
-      const userId = new ObjectId(req.user.userId);
-      const displayName = req.body.displayName;
-
-      // Check if the user exists
-      const user = await databaseClient
-        .db()
-        .collection("users")
-        .findOne({ _id: userId });
-
-      if (!user) {
-        return res.status(404).json({ error: "User not found." });
-      }
-
-      // Update user profile image URL and displayName in the database
-      const result = await databaseClient
-        .db()
-        .collection("users")
-        .updateOne(
-          { _id: userId },
-          {
-            $set: {
-              public_id: req.cloudinary.public_id,
-              profileImage: req.cloudinary.secure_url,
-              displayName: displayName,
-            },
-          }
-        );
-
-      // Check if the update was successful
-      if (result.modifiedCount === 1) {
-        return res.json({
-          message: "Image uploaded and updated profile picture successfully.",
-          public_id: req.cloudinary.public_id,
-          secure_url: req.cloudinary.secure_url,
-          userId: user._id,
-          displayName: displayName,
-        });
-      } else {
-        return res
-          .status(500)
-          .json({ error: "Failed to update profile picture." });
-      }
-    } catch (error) {
-      console.error("Error updating profile picture:", error);
-      return res
-        .status(500)
-        .json({ error: "Failed to update profile picture." });
-    }
-  }
+  usersControllers.createProfile
 );
 
 // //posts GET POST PATCH(PUT) DELETE
@@ -129,8 +74,6 @@ webServer.post(
   postsController.postPosts
 );
 
-
-
 // webServer.patch(
 //   "/posts/:postId",
 //   auth,
@@ -139,13 +82,13 @@ webServer.post(
 //   postsController.patchPosts
 // );
 
-// webServer.delete(
-//   "/posts/:postId",
-//   auth,
-//   upload.single("image"),
-//   uploadToCloudinary,
-//   postsController.deletePosts
-// );
+webServer.delete(
+  "/posts/:postId",
+  auth,
+  upload.single("image"),
+  uploadToCloudinary,
+  postsController.deletePosts
+);
 
 // lists GET POST PATCH(PUT) DELETE
 webServer.get("/lists", auth, listsControllers.getLists);
