@@ -57,33 +57,33 @@ export const postPosts = async (req, res) => {
 
 // export const patchPosts = async (req, res) => {};
 
-export const deletePosts = async (req, res) => {
-    const postId = new ObjectId(req.params.postId)
-    const image = {
-        public_id: req.cloudinary.public_id,
-        secure_url: req.cloudinary.secure_url,
-    }
-    try {
-        if (image.public_id) {
-            await cloudinary.uploader.destroy(image.public_id)
-        }
+// export const deletePosts = async (req, res) => {
+//     const postId = new ObjectId(req.params.postId)
+//     const image = {
+//         public_id: req.cloudinary.public_id,
+//         secure_url: req.cloudinary.secure_url,
+//     }
+//     try {
+//         if (image.public_id) {
+//             await cloudinary.uploader.destroy(image.public_id)
+//         }
 
-        // Delete the post from the database using the postId
-        const result = await databaseClient
-            .db()
-            .collection("posts")
-            .deleteOne({ _id: postId });
+//         // Delete the post from the database using the postId
+//         const result = await databaseClient
+//             .db()
+//             .collection("posts")
+//             .deleteOne({ _id: postId });
 
-        // Check if the post was deleted successfully
-        if (result.deletedCount === 1) {
-            console.log("Post deleted successfully.");
-            return res.status(200).json({ message: "Post deleted successfully." });
-        } else {
-            console.log("Failed to delete post:", result);
-            return res.status(404).json({ error: "Post not found." });
-        }
-    } catch (error) {
-        console.error("Error deleting post:", error);
-        return res.status(500).json({ error: "Failed to delete post." });
-    }
-};
+//         // Check if the post was deleted successfully
+//         if (result.deletedCount === 1) {
+//             console.log("Post deleted successfully.");
+//             return res.status(200).json({ message: "Post deleted successfully." });
+//         } else {
+//             console.log("Failed to delete post:", result);
+//             return res.status(404).json({ error: "Post not found." });
+//         }
+//     } catch (error) {
+//         console.error("Error deleting post:", error);
+//         return res.status(500).json({ error: "Failed to delete post." });
+//     }
+// };

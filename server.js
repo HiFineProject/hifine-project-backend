@@ -78,13 +78,13 @@ webServer.post(
 //   postsController.patchPosts
 // );
 
-webServer.delete(
-  "/posts/:postId",
-  auth,
-  upload.single("image"),
-  uploadToCloudinary,
-  postsController.deletePosts
-);
+// webServer.delete(
+//   "/posts/:postId",
+//   auth,
+//   upload.single("image"),
+//   uploadToCloudinary,
+//   postsController.deletePosts
+// );
 
 // lists GET POST PATCH(PUT) DELETE
 webServer.get("/lists", auth, listsControllers.getLists);
