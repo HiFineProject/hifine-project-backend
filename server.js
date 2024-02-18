@@ -21,7 +21,6 @@ const webServer = express();
 
 webServer.use(logmiddlewares());
 webServer.use(express.json());
-
 webServer.use(helmet());
 webServer.use(cors());
 
@@ -61,67 +60,31 @@ webServer.patch(
 );
 
 // //posts GET POST PATCH(PUT) DELETE
-webServer.get("/posts", auth, async (req, res) => {
-  try {
-    const userId = new ObjectId(req.user.userId); // Convert userId to ObjectId
-    const posts = await databaseClient
-      .db()
-      .collection("posts")
-      .find({ userId: userId })
-      .toArray();
-
-    res.status(200).send(posts);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ error: { message: "Internal Server Error" } });
-  }
-});
+webServer.get("/posts", auth, postsController.getPosts);
 
 webServer.post(
   "/posts",
   auth,
   upload.single("image"),
   uploadToCloudinary,
-  async (req, res) => {
-    try {
-      if (!req.file || !req.cloudinary) {
-        return res.status(400).json({ error: "File upload failed." });
-      }
-      const { description, duration, distance, activityType } = req.body;
-      const { hour, min } = JSON.parse(duration);
-      const { km, m } = JSON.parse(distance);
-
-      const { public_id, secure_url } = req.cloudinary;
-      const userId = new ObjectId(req.user.userId);
-
-      const result = await databaseClient.db().collection("posts").insertOne({
-        userId,
-        description,
-        duration: { hour, min },
-        distance: { km, m },
-        activityType,
-        image: {
-          public_id,
-          secure_url,
-        },
-      });
-
-      if (result.insertedCount === 1) {
-        console.log("Post created successfully:", result.ops[0]);
-        return res.status(201).json({ message: "Post created successfully." });
-      } else {
-        console.log("Failed to create post:", result);
-        return res.status(500).json({ error: "Failed to create post." });
-      }
-    } catch (error) {
-      console.error("Error creating post:", error);
-      return res.status(500).json({ error: "Failed to create post." });
-    }
-  }
+  postsController.postPosts
 );
 
-// webServer.patch("/posts/:postId", auth, postsController.patchPost);
-// webServer.delete("/posts/:postId", auth, postsController.deletePost);
+// webServer.patch(
+//   "/posts/:postId",
+//   auth,
+//   upload.single("image"),
+//   uploadToCloudinary,
+//   postsController.patchPosts
+// );
+
+webServer.delete(
+  "/posts/:postId",
+  auth,
+  upload.single("image"),
+  uploadToCloudinary,
+  postsController.deletePosts
+);
 
 // lists GET POST PATCH(PUT) DELETE
 webServer.get("/lists", auth, listsControllers.getLists);
