@@ -82,13 +82,13 @@ webServer.post(
 //   postsController.patchPosts
 // );
 
-webServer.delete(
-  "/posts/:postId",
-  auth,
-  upload.single("image"),
-  uploadToCloudinary,
-  postsController.deletePosts
-);
+// webServer.delete(
+//   "/posts/:postId",
+//   auth,
+//   upload.single("image"),
+//   uploadToCloudinary,
+//   postsController.deletePosts
+// );
 
 // lists GET POST PATCH(PUT) DELETE
 webServer.get("/lists", auth, listsControllers.getLists);
@@ -106,6 +106,7 @@ webServer.delete("/lists/:listId", auth, listsControllers.deleteList);
 
 // for Render
 const currentServer = webServer.listen(process.env.PORT || 3000, () => {
+
   console.log(
     `DATABASE IS CONNECTED: NAME => ${databaseClient.db().databaseName}`
   );
